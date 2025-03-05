@@ -3,12 +3,11 @@
 #include <vector>
 #include <unordered_set>
 #include <opencv2/opencv.hpp>
+#include <algorithm>
+#include <random>
 
 using namespace cv;
 using namespace std;
-
-// Forward declaration for a non-recursive implementation
-void iterativeDivide(const Mat& image, int maxLevel, float threshold, vector<Point>& corners);
 
 // Hash structure for Point to use with unordered_set
 struct PointHash {
@@ -24,12 +23,20 @@ struct PointEqual {
     }
 };
 
-// Optimized recursive version (if needed for compatibility)
+// Calculate distance between two points
+inline float pointDistance(const Point& p1, const Point& p2) {
+    float dx = static_cast<float>(p1.x - p2.x);
+    float dy = static_cast<float>(p1.y - p2.y);
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+// Optimized recursive version with minimum cell size check
 void recursiveDivide(const Mat& image, int x, int y, int w, int h, int currentLevel,
     int maxLevel, float threshold, vector<Point>& corners,
-    unordered_set<Point, PointHash, PointEqual>& uniqueCorners) {
-    // Quick exit for invalid regions
-    if (w <= 0 || h <= 0) return;
+    unordered_set<Point, PointHash, PointEqual>& uniqueCorners,
+    int minCellWidth, int minCellHeight) {
+    // Quick exit for invalid regions or cells smaller than minimum size
+    if (w <= 0 || h <= 0 || w < minCellWidth || h < minCellHeight) return;
 
     // Early processing of leaf nodes or max depth reached
     if (currentLevel >= maxLevel) {
@@ -77,120 +84,153 @@ void recursiveDivide(const Mat& image, int x, int y, int w, int h, int currentLe
     int remW = w - halfW;  // Handle odd sizes correctly
     int remH = h - halfH;
 
+    // Check if subdivided cells would be too small
+    if (halfW < minCellWidth || halfH < minCellHeight) {
+        // Cell too small to subdivide further, add corners now
+        Point topLeft(x, y);
+        Point topRight(x + w, y);
+        Point bottomLeft(x, y + h);
+        Point bottomRight(x + w, y + h);
+
+        if (uniqueCorners.insert(topLeft).second) corners.push_back(topLeft);
+        if (uniqueCorners.insert(topRight).second) corners.push_back(topRight);
+        if (uniqueCorners.insert(bottomLeft).second) corners.push_back(bottomLeft);
+        if (uniqueCorners.insert(bottomRight).second) corners.push_back(bottomRight);
+
+        return;
+    }
+
     // Use tail recursion optimization where possible
-    recursiveDivide(image, x, y, halfW, halfH, currentLevel + 1, maxLevel, threshold, corners, uniqueCorners);
-    recursiveDivide(image, x + halfW, y, remW, halfH, currentLevel + 1, maxLevel, threshold, corners, uniqueCorners);
-    recursiveDivide(image, x, y + halfH, halfW, remH, currentLevel + 1, maxLevel, threshold, corners, uniqueCorners);
-    recursiveDivide(image, x + halfW, y + halfH, remW, remH, currentLevel + 1, maxLevel, threshold, corners, uniqueCorners);
+    recursiveDivide(image, x, y, halfW, halfH, currentLevel + 1, maxLevel, threshold, corners, uniqueCorners, minCellWidth, minCellHeight);
+    recursiveDivide(image, x + halfW, y, remW, halfH, currentLevel + 1, maxLevel, threshold, corners, uniqueCorners, minCellWidth, minCellHeight);
+    recursiveDivide(image, x, y + halfH, halfW, remH, currentLevel + 1, maxLevel, threshold, corners, uniqueCorners, minCellWidth, minCellHeight);
+    recursiveDivide(image, x + halfW, y + halfH, remW, remH, currentLevel + 1, maxLevel, threshold, corners, uniqueCorners, minCellWidth, minCellHeight);
 }
 
-// Non-recursive implementation for better performance
-void iterativeDivide(const Mat& image, int maxLevel, float threshold, vector<Point>& corners) {
-    // Using a queue for breadth-first processing
-    struct QuadNode {
-        int x, y, w, h, level;
-        QuadNode(int _x, int _y, int _w, int _h, int _l) :
-            x(_x), y(_y), w(_w), h(_h), level(_l) {
-        }
-    };
+// Apply spatial filtering to reduce point density
+vector<Point> filterPointsBySpacing(const vector<Point>& inputPoints, float minDistance) {
+    if (minDistance <= 0) return inputPoints;
 
-    // Using a flat vector as queue for better cache locality
-    vector<QuadNode> queue;
-    queue.reserve(1024);  // Reserve space to avoid frequent reallocations
+    vector<Point> filteredPoints;
+    filteredPoints.reserve(inputPoints.size() / 2);  // Estimate conservatively
 
-    // Start with the whole image
-    queue.emplace_back(0, 0, image.cols, image.rows, 0);
+    // Use a grid-based approach for efficiency with large point sets
+    const int gridSize = static_cast<int>(minDistance) + 1;
 
-    // Use a hash set for O(1) duplicate checks
-    unordered_set<Point, PointHash, PointEqual> uniqueCorners;
-    uniqueCorners.reserve(image.cols * image.rows / 16);  // Pre-allocate reasonable size
+    // Find image bounds
+    int minX = INT_MAX, minY = INT_MAX;
+    int maxX = INT_MIN, maxY = INT_MIN;
 
-    const int maxX = image.cols - 1;
-    const int maxY = image.rows - 1;
+    for (const auto& pt : inputPoints) {
+        minX = std::min(minX, pt.x);
+        minY = std::min(minY, pt.y);
+        maxX = std::max(maxX, pt.x);
+        maxY = std::max(maxY, pt.y);
+    }
 
-    while (!queue.empty()) {
-        // Process front node and remove it
-        QuadNode node = queue.back();
-        queue.pop_back();  // Using as a stack (depth-first) for better cache behavior
+    // Create occupancy grid
+    int gridWidth = (maxX - minX) / gridSize + 1;
+    int gridHeight = (maxY - minY) / gridSize + 1;
 
-        if (node.w <= 0 || node.h <= 0) continue;  // Skip invalid regions
+    // Use vector of vectors for the grid cells
+    vector<vector<Point>> grid(gridWidth * gridHeight);
 
-        if (node.level >= maxLevel) {
-            // Leaf node, add corners
-            Point topLeft(node.x, node.y);
-            Point topRight(node.x + node.w, node.y);
-            Point bottomLeft(node.x, node.y + node.h);
-            Point bottomRight(node.x + node.w, node.y + node.h);
+    // Place points into grid cells
+    for (const auto& pt : inputPoints) {
+        int gridX = (pt.x - minX) / gridSize;
+        int gridY = (pt.y - minY) / gridSize;
+        int idx = gridY * gridWidth + gridX;
+        grid[idx].push_back(pt);
+    }
 
-            if (uniqueCorners.insert(topLeft).second) corners.push_back(topLeft);
-            if (uniqueCorners.insert(topRight).second) corners.push_back(topRight);
-            if (uniqueCorners.insert(bottomLeft).second) corners.push_back(bottomLeft);
-            if (uniqueCorners.insert(bottomRight).second) corners.push_back(bottomRight);
+    // Process each grid cell
+    for (int i = 0; i < grid.size(); i++) {
+        if (grid[i].empty()) continue;
 
-            continue;
-        }
+        // Start with first point in cell
+        filteredPoints.push_back(grid[i][0]);
 
-        // Check intensity at center to decide if we should subdivide
-        int centerX = std::min(node.x + node.w / 2, maxX);
-        int centerY = std::min(node.y + node.h / 2, maxY);
+        // Check remaining points in this cell and in neighborhood
+        int gridX = i % gridWidth;
+        int gridY = i / gridWidth;
 
-        if (node.level == maxLevel - 1) {
-            float intensity = image.at<float>(centerY, centerX);
+        // Check neighboring cells (including this cell)
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                int nx = gridX + dx;
+                int ny = gridY + dy;
 
-            if (intensity <= threshold) {
-                // Don't subdivide further
-                Point topLeft(node.x, node.y);
-                Point topRight(node.x + node.w, node.y);
-                Point bottomLeft(node.x, node.y + node.h);
-                Point bottomRight(node.x + node.w, node.y + node.h);
+                // Skip out-of-bounds cells
+                if (nx < 0 || nx >= gridWidth || ny < 0 || ny >= gridHeight)
+                    continue;
 
-                if (uniqueCorners.insert(topLeft).second) corners.push_back(topLeft);
-                if (uniqueCorners.insert(topRight).second) corners.push_back(topRight);
-                if (uniqueCorners.insert(bottomLeft).second) corners.push_back(bottomLeft);
-                if (uniqueCorners.insert(bottomRight).second) corners.push_back(bottomRight);
+                int neighborIdx = ny * gridWidth + nx;
 
-                continue;
+                // Skip empty cells
+                if (grid[neighborIdx].empty())
+                    continue;
+
+                // Mark points that are too close to any point in filteredPoints
+                for (int j = 0; j < grid[neighborIdx].size(); j++) {
+                    const Point& candidate = grid[neighborIdx][j];
+                    bool tooClose = false;
+
+                    // Check against already accepted points
+                    for (const Point& accepted : filteredPoints) {
+                        if (pointDistance(candidate, accepted) < minDistance) {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+
+                    if (!tooClose) {
+                        filteredPoints.push_back(candidate);
+                    }
+                }
+
+                // Clear processed cell to avoid reprocessing
+                grid[neighborIdx].clear();
             }
         }
-
-        // Subdivide (push in reverse order for better locality)
-        int halfW = node.w / 2;
-        int halfH = node.h / 2;
-        int remW = node.w - halfW;
-        int remH = node.h - halfH;
-
-        // Bottom-right
-        queue.emplace_back(node.x + halfW, node.y + halfH, remW, remH, node.level + 1);
-        // Bottom-left
-        queue.emplace_back(node.x, node.y + halfH, halfW, remH, node.level + 1);
-        // Top-right
-        queue.emplace_back(node.x + halfW, node.y, remW, halfH, node.level + 1);
-        // Top-left
-        queue.emplace_back(node.x, node.y, halfW, halfH, node.level + 1);
     }
+
+    return filteredPoints;
 }
 
-// Main function that chooses the best implementation
-vector<Point> getGridPoints(const Mat& image, int maxLevel, float threshold) {
+// Main function that generates the grid points
+vector<Point> getGridPoints(const Mat& image, int maxLevel, float threshold,
+    int minCellWidth, int minCellHeight, float pointSpacing = 0) {
+
+    // Generate initial point set
     vector<Point> corners;
-    // Pre-allocate space - based on expected size
     corners.reserve((1 << (2 * maxLevel)) * 4);  // Conservative estimate
 
-    // Use the iterative version for better performance
-    //iterativeDivide(image, maxLevel, threshold, corners);
-
-    // Alternative: recursive version with explicit deduplication
-    
     unordered_set<Point, PointHash, PointEqual> uniqueCorners;
-    recursiveDivide(image, 0, 0, image.cols, image.rows, 0, maxLevel, threshold, corners, uniqueCorners);
-    
+    recursiveDivide(image, 0, 0, image.cols, image.rows, 0, maxLevel, threshold,
+        corners, uniqueCorners, minCellWidth, minCellHeight);
 
-    return corners;
+    // If no spacing control requested, return all points
+    if (pointSpacing <= 0) {
+        return corners;
+    }
+
+    // Apply spatial filtering to control point density
+    return filterPointsBySpacing(corners, pointSpacing);
 }
 
+// Generate adaptive grid with controllable spacing
 void GenerateAdaptiveGrid_v1(const Mat& magnitude_of_distortion,
     vector<Point>& GDC_Adaptive_Grid_Points,
-    const int Maxlevel,
-    const float LowThreshold) {
-    GDC_Adaptive_Grid_Points = getGridPoints(magnitude_of_distortion, Maxlevel, LowThreshold);
+    const float LowThreshold,
+    const int Maxlevel = 6,
+    int minCellWidth = 5,
+    int minCellHeight = 5,
+    float pointSpacing = 20.0) {  // Control minimum distance between points
+
+    GDC_Adaptive_Grid_Points = getGridPoints(magnitude_of_distortion,
+        Maxlevel,
+        LowThreshold,
+        minCellWidth,
+        minCellHeight,
+        pointSpacing);
 }

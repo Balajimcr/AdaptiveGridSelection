@@ -68,7 +68,7 @@ void TestAdaptiveGridGeneration() {
     tm_HAG.stop();
 
     tm_v1.start();
-    GenerateAdaptiveGrid_v1(distortionMagnitude, adaptiveGridPoints_v1, MAX_LEVEL, GradientLowThreshold);
+    GenerateAdaptiveGrid_v1(distortionMagnitude, adaptiveGridPoints_v1, GradientLowThreshold);
     tm_v1.stop();
     
     std::cout << "[Timing] Time Taken for Fixed Grid: " << tm_FM.getTimeMilli() << " ms, Total Points: " << fixedGridPoints.size() << std::endl;
