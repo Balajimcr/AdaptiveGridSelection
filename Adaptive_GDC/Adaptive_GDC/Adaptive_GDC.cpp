@@ -29,7 +29,6 @@ void TestAdaptiveGridGeneration() {
     const int gridX_FG = 33, gridY_FG = 33;
     const float GradientLowThreshold = 0.75;
     const float DistorstionStrength = 2.75;
-    int MAX_LEVEL = 6;
 
     // Initialize fisheye distortion
     FisheyeEffect distorter(imageSize);
@@ -81,9 +80,8 @@ void TestAdaptiveGridRemapping() {
     const cv::Size imageSize(1280, 720);
     const int gridX = 30, gridY = 30;
     const int gridX_FG = 33, gridY_FG = 33;
-    const float GradientLowThreshold = 0.95;
+    const float GradientLowThreshold = 0.95f;
     const float DistorstionStrength = 2.75;
-    int MAX_LEVEL = 6;
 
     // Create Outputs directory if it doesn't exist
     create_directory("Outputs");
@@ -162,25 +160,27 @@ void TestAdaptiveGridRemapping() {
     displayAndSaveImage(hagMetrics.errorMap, "ReConError_HAG Grid Error Map");
     displayAndSaveImage(v1Metrics.errorMap, "ReConError_RD(V1) Grid Error Map");
 
-    // Create comparison table
-    std::cout << "\n=== Reconstruction Results Summary ===\n" << std::endl;
-    std::cout << "Grid Type   | Points | RMSE      | Mean Error | Max Error  | PSNR (dB) | Time (ms)" << std::endl;
-    std::cout << "----------------------------------------------------------------------------" << std::endl;
+    {
+        // Create comparison table
+        std::cout << "\n=== Reconstruction Results Summary ===\n" << std::endl;
+        std::cout << "Grid Type   | Points | RMSE      | Mean Error | Max Error  | PSNR (dB) | Time (ms)" << std::endl;
+        std::cout << "----------------------------------------------------------------------------" << std::endl;
 
-    printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
-        "Fixed Grid", fixedGridPoints.size(), fixedMetrics.rmse,
-        fixedMetrics.meanError, fixedMetrics.maxError,
-        fixedMetrics.psnr, fixedMetrics.executionTimeMs);
+        printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
+            "Fixed Grid", fixedGridPoints.size(), fixedMetrics.rmse,
+            fixedMetrics.meanError, fixedMetrics.maxError,
+            fixedMetrics.psnr, fixedMetrics.executionTimeMs);
 
-    printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
-        "HAG Grid", adaptiveGridPoints.size(), hagMetrics.rmse,
-        hagMetrics.meanError, hagMetrics.maxError,
-        hagMetrics.psnr, hagMetrics.executionTimeMs);
+        printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
+            "HAG Grid", adaptiveGridPoints.size(), hagMetrics.rmse,
+            hagMetrics.meanError, hagMetrics.maxError,
+            hagMetrics.psnr, hagMetrics.executionTimeMs);
 
-    printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
-        "RD(V1) Grid", adaptiveGridPoints_v1.size(), v1Metrics.rmse,
-        v1Metrics.meanError, v1Metrics.maxError,
-        v1Metrics.psnr, v1Metrics.executionTimeMs);
+        printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
+            "RD(V1) Grid", adaptiveGridPoints_v1.size(), v1Metrics.rmse,
+            v1Metrics.meanError, v1Metrics.maxError,
+            v1Metrics.psnr, v1Metrics.executionTimeMs);
+    }
 
     // Create side-by-side comparison of error maps
     cv::Mat comparisonImage(imageSize.height, imageSize.width * 3, CV_8UC3);
@@ -207,19 +207,20 @@ void TestAdaptiveGridRemapping() {
     displayAndSaveImage(comparisonImage, "ReCon_Error Map Comparison");
 
     // Optional: Demonstrate the reconstructed distortion on a test image
-    cv::Mat testImage = cv::imread("test_image.jpg");
+    cv::Mat testImage(imageSize,CV_8UC3);
+    DrawGrid(testImage);
     if (!testImage.empty()) {
         cv::resize(testImage, testImage, imageSize);
 
         // Apply original distortion
         cv::Mat originalDistorted;
-        cv::remap(testImage, originalDistorted, mapX, mapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT);
+        cv::remap(testImage, originalDistorted, mapX, mapY, cv::INTER_CUBIC, cv::BORDER_REFLECT);
 
         // Apply reconstructed distortions
         cv::Mat fixedDistorted, hagDistorted, v1Distorted;
-        cv::remap(testImage, fixedDistorted, fixedReconstructedX, fixedReconstructedY, cv::INTER_LINEAR, cv::BORDER_CONSTANT);
-        cv::remap(testImage, hagDistorted, adaptiveReconstructedX, adaptiveReconstructedY, cv::INTER_LINEAR, cv::BORDER_CONSTANT);
-        cv::remap(testImage, v1Distorted, adaptiveV1ReconstructedX, adaptiveV1ReconstructedY, cv::INTER_LINEAR, cv::BORDER_CONSTANT);
+        cv::remap(testImage, fixedDistorted, fixedReconstructedX, fixedReconstructedY, cv::INTER_CUBIC, cv::BORDER_REFLECT);
+        cv::remap(testImage, hagDistorted, adaptiveReconstructedX, adaptiveReconstructedY, cv::INTER_CUBIC, cv::BORDER_REFLECT);
+        cv::remap(testImage, v1Distorted, adaptiveV1ReconstructedX, adaptiveV1ReconstructedY, cv::INTER_CUBIC, cv::BORDER_REFLECT);
 
         // Display results
         displayAndSaveImage(originalDistorted, "ReCon_Original Distortion");

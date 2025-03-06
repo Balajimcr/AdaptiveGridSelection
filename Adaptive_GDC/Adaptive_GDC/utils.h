@@ -10,6 +10,23 @@
 #define create_directory(dir) std::filesystem::create_directory(dir)
 #endif
 
+// Function for drawing a grid 
+void DrawGrid(cv::Mat mSrc, const int Grid_X = 35, const int Grid_Y = 35) {
+    int width = mSrc.size().width;
+    int height = mSrc.size().height;
+
+    const int cellwidth = width / Grid_X;
+    const int cellheight = width / Grid_X;
+
+	mSrc.setTo(Scalar::all(255));
+
+    for (int i = 0; i < height; i += cellwidth)
+        cv::line(mSrc, cv::Point(0, i), cv::Point(width, i), cv::Scalar(255, 0, 0), 2);
+
+    for (int i = 0; i < width; i += cellheight)
+        cv::line(mSrc, cv::Point(i, 0), cv::Point(i, height), cv::Scalar(255, 0, 0), 2);
+}
+
 void DrawPoints(cv::Mat& image, const std::vector<cv::Point>& points, const cv::Scalar& color, int radius = 2, int thickness = -1) {
     for (const auto& point : points) {
         cv::circle(image, point, radius, color, thickness);
