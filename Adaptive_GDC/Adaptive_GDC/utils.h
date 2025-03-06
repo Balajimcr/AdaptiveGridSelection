@@ -2,6 +2,14 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 
+#ifdef _WIN32
+#include <direct.h>
+#define create_directory(dir) _mkdir(dir)
+#else
+#include <filesystem>
+#define create_directory(dir) std::filesystem::create_directory(dir)
+#endif
+
 void DrawPoints(cv::Mat& image, const std::vector<cv::Point>& points, const cv::Scalar& color, int radius = 2, int thickness = -1) {
     for (const auto& point : points) {
         cv::circle(image, point, radius, color, thickness);

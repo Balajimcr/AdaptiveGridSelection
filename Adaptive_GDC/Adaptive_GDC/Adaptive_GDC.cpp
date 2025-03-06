@@ -2,6 +2,8 @@
 //
 
 #include <iostream>
+#include <filesystem>
+#include <fstream>
 #include "FishEyeEffect.h"
 #include "GenerateGrid.h"
 #include "utils.h"
@@ -82,6 +84,12 @@ void TestAdaptiveGridRemapping() {
     const float GradientLowThreshold = 0.95;
     const float DistorstionStrength = 2.75;
     int MAX_LEVEL = 6;
+
+    // Create Outputs directory if it doesn't exist
+    create_directory("Outputs");
+
+    // Create a single CSV file for all outputs
+    std::ofstream outputCSV("Outputs/grid_analysis_results.csv", std::ios::out);
 
     // Initialize fisheye distortion
     FisheyeEffect distorter(imageSize);
@@ -281,6 +289,47 @@ void TestAdaptiveGridRemapping() {
     printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
         "RD(V1) Grid", adaptiveGridPoints_v1.size(), originalSize / 1024.0,
         v1GridSize / 1024.0, originalSize / v1GridSize);
+
+    if (outputCSV.is_open()) {
+        // Write timing section to CSV
+        outputCSV << "TIMING RESULTS\n";
+        outputCSV << "Grid Type,Time (ms),Total Points\n";
+        outputCSV << "Fixed Grid," << tm_FM.getTimeMilli() << "," << fixedGridPoints.size() << "\n";
+        outputCSV << "HAG Grid," << tm_HAG.getTimeMilli() << "," << adaptiveGridPoints.size() << "\n";
+        outputCSV << "RD(V1) Grid," << tm_v1.getTimeMilli() << "," << adaptiveGridPoints_v1.size() << "\n\n";
+
+        // Write reconstruction results section to CSV
+        outputCSV << "RECONSTRUCTION RESULTS\n";
+        outputCSV << "Grid Type,Points,RMSE,Mean Error,Max Error,PSNR (dB),Time (ms)\n";
+        outputCSV << "Fixed Grid," << fixedGridPoints.size() << ","
+            << fixedMetrics.rmse << "," << fixedMetrics.meanError << ","
+            << fixedMetrics.maxError << "," << fixedMetrics.psnr << ","
+            << fixedMetrics.executionTimeMs << "\n";
+        outputCSV << "HAG Grid," << adaptiveGridPoints.size() << ","
+            << hagMetrics.rmse << "," << hagMetrics.meanError << ","
+            << hagMetrics.maxError << "," << hagMetrics.psnr << ","
+            << hagMetrics.executionTimeMs << "\n";
+        outputCSV << "RD(V1) Grid," << adaptiveGridPoints_v1.size() << ","
+            << v1Metrics.rmse << "," << v1Metrics.meanError << ","
+            << v1Metrics.maxError << "," << v1Metrics.psnr << ","
+            << v1Metrics.executionTimeMs << "\n\n";
+
+        // Write compression results section to CSV
+        outputCSV << "COMPRESSION RESULTS\n";
+        outputCSV << "Grid Type,Points,Original Size (KB),Grid Size (KB),Compression Ratio\n";
+        outputCSV << "Fixed Grid," << fixedGridPoints.size() << ","
+            << originalSize / 1024.0 << "," << fixedGridSize / 1024.0 << ","
+            << originalSize / fixedGridSize << "\n";
+        outputCSV << "HAG Grid," << adaptiveGridPoints.size() << ","
+            << originalSize / 1024.0 << "," << hagGridSize / 1024.0 << ","
+            << originalSize / hagGridSize << "\n";
+        outputCSV << "RD(V1) Grid," << adaptiveGridPoints_v1.size() << ","
+            << originalSize / 1024.0 << "," << v1GridSize / 1024.0 << ","
+            << originalSize / v1GridSize << "\n";
+
+        // Close the CSV file
+        outputCSV.close();
+    }
 
     cv::waitKey();
 }
