@@ -120,6 +120,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\D\Project_Files\Samsung\GDC\AdaptiveGridSelection\Adaptive_GDC\Adaptive_GDC\libInterpolate\install\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -135,6 +136,7 @@
     <ClInclude Include="FishEyeEffect.h" />
     <ClInclude Include="GenerateGrid.h" />
     <ClInclude Include="GenerateGridv1.h" />
+    <ClInclude Include="ReconstructMap.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

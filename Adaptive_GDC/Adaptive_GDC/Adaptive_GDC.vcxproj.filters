@@ -32,5 +32,8 @@
     <ClInclude Include="GenerateGridv1.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ReconstructMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
