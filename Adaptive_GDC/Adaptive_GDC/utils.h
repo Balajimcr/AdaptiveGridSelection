@@ -27,7 +27,8 @@ void displayAndSaveImage(const cv::Mat& image, const std::string& windowName) {
     cv::waitKey(1);
 
     // Construct the filename using the window name and ".png" extension
-    std::string filename = windowName + ".png";
+    const std::string foldername = "Outputs/";
+    std::string filename = foldername + windowName + ".png";
     imwrite(filename, image);
 }
 

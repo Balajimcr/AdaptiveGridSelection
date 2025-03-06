@@ -130,9 +130,9 @@ void TestAdaptiveGridRemapping() {
     createGridVisualization(distortionMagnitude_8U, adaptiveGridPoints_v1, adaptiveGridImage_v1);
 
     // Display and save results
-    displayAndSaveImage(fixedGridImage, "Fixed Grid Map");
-    displayAndSaveImage(adaptiveGridImage, "Adaptive Grid Map");
-    displayAndSaveImage(adaptiveGridImage_v1, "Adaptive Grid Map v1");
+    displayAndSaveImage(fixedGridImage, "Grid_Fixed Grid Map");
+    displayAndSaveImage(adaptiveGridImage, "Grid_Adaptive Grid Map");
+    displayAndSaveImage(adaptiveGridImage_v1, "Grid_Adaptive Grid Map v1");
 
     // Image Remapping - Reconstruction and evaluation
     std::cout << "\n=== Distortion Map Reconstruction Evaluation ===\n" << std::endl;
@@ -158,9 +158,9 @@ void TestAdaptiveGridRemapping() {
         mapX, mapY, adaptiveGridPoints_v1, adaptiveV1ReconstructedX, adaptiveV1ReconstructedY);
 
     // Display error maps
-    displayAndSaveImage(fixedMetrics.errorMap, "Fixed Grid Error Map");
-    displayAndSaveImage(hagMetrics.errorMap, "HAG Grid Error Map");
-    displayAndSaveImage(v1Metrics.errorMap, "RD(V1) Grid Error Map");
+    displayAndSaveImage(fixedMetrics.errorMap, "ReConError_Fixed Grid Error Map");
+    displayAndSaveImage(hagMetrics.errorMap, "ReConError_HAG Grid Error Map");
+    displayAndSaveImage(v1Metrics.errorMap, "ReConError_RD(V1) Grid Error Map");
 
     // Create comparison table
     std::cout << "\n=== Reconstruction Results Summary ===\n" << std::endl;
@@ -204,7 +204,7 @@ void TestAdaptiveGridRemapping() {
         cv::FONT_HERSHEY_SIMPLEX, 0.8,
         cv::Scalar(255, 255, 255), 2);
 
-    displayAndSaveImage(comparisonImage, "Error Map Comparison");
+    displayAndSaveImage(comparisonImage, "ReCon_Error Map Comparison");
 
     // Optional: Demonstrate the reconstructed distortion on a test image
     cv::Mat testImage = cv::imread("test_image.jpg");
@@ -222,10 +222,10 @@ void TestAdaptiveGridRemapping() {
         cv::remap(testImage, v1Distorted, adaptiveV1ReconstructedX, adaptiveV1ReconstructedY, cv::INTER_LINEAR, cv::BORDER_CONSTANT);
 
         // Display results
-        displayAndSaveImage(originalDistorted, "Original Distortion");
-        displayAndSaveImage(fixedDistorted, "Fixed Grid Distortion");
-        displayAndSaveImage(hagDistorted, "HAG Grid Distortion");
-        displayAndSaveImage(v1Distorted, "RD(V1) Grid Distortion");
+        displayAndSaveImage(originalDistorted, "ReCon_Original Distortion");
+        displayAndSaveImage(fixedDistorted, "ReCon_Fixed Grid Distortion");
+        displayAndSaveImage(hagDistorted, "ReCon_HAG Grid Distortion");
+        displayAndSaveImage(v1Distorted, "ReCon_RD(V1) Grid Distortion");
 
         // Create side-by-side comparison
         cv::Mat distortionComparison(imageSize.height, imageSize.width * 4, CV_8UC3);
@@ -255,7 +255,7 @@ void TestAdaptiveGridRemapping() {
             cv::FONT_HERSHEY_SIMPLEX, 0.8,
             cv::Scalar(255, 255, 255), 2);
 
-        displayAndSaveImage(distortionComparison, "Distortion Comparison");
+        displayAndSaveImage(distortionComparison, "ReCon_Distortion Comparison");
     }
 
     // Calculate compression ratios
@@ -264,31 +264,24 @@ void TestAdaptiveGridRemapping() {
     double hagGridSize = adaptiveGridPoints.size();
     double v1GridSize = adaptiveGridPoints_v1.size();
 
-    std::cout << "\n=== Compression Analysis ===" << std::endl;
-    std::cout << "Original Map Size: " << originalSize / 1024.0 << " KB" << std::endl;
-    std::cout << "Fixed Grid Size: " << fixedGridSize / 1024.0 << " KB (Ratio: "
-        << originalSize / fixedGridSize << ":1)" << std::endl;
-    std::cout << "HAG Grid Size: " << hagGridSize / 1024.0 << " KB (Ratio: "
-        << originalSize / hagGridSize << ":1)" << std::endl;
-    std::cout << "RD(V1) Grid Size: " << v1GridSize / 1024.0 << " KB (Ratio: "
-        << originalSize / v1GridSize << ":1)" << std::endl;
+    {
+        // Detailed compression ratio table
+        std::cout << "\n=== Compression Ratio ===" << std::endl;
+        std::cout << "Grid Type   | Points | Original Size (KB) | Grid Size (KB) | Compression Ratio" << std::endl;
+        std::cout << "----------------------------------------------------------------------------" << std::endl;
 
-    // Detailed compression ratio table
-    std::cout << "\n=== Detailed Compression Ratio ===" << std::endl;
-    std::cout << "Grid Type   | Points | Original Size (KB) | Grid Size (KB) | Compression Ratio" << std::endl;
-    std::cout << "----------------------------------------------------------------------------" << std::endl;
+        printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
+            "Fixed Grid", fixedGridPoints.size(), originalSize / 1024.0,
+            fixedGridSize / 1024.0, originalSize / fixedGridSize);
 
-    printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
-        "Fixed Grid", fixedGridPoints.size(), originalSize / 1024.0,
-        fixedGridSize / 1024.0, originalSize / fixedGridSize);
+        printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
+            "HAG Grid", adaptiveGridPoints.size(), originalSize / 1024.0,
+            hagGridSize / 1024.0, originalSize / hagGridSize);
 
-    printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
-        "HAG Grid", adaptiveGridPoints.size(), originalSize / 1024.0,
-        hagGridSize / 1024.0, originalSize / hagGridSize);
-
-    printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
-        "RD(V1) Grid", adaptiveGridPoints_v1.size(), originalSize / 1024.0,
-        v1GridSize / 1024.0, originalSize / v1GridSize);
+        printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
+            "RD(V1) Grid", adaptiveGridPoints_v1.size(), originalSize / 1024.0,
+            v1GridSize / 1024.0, originalSize / v1GridSize);
+    }
 
     if (outputCSV.is_open()) {
         // Write timing section to CSV

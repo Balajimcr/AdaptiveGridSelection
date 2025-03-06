@@ -298,8 +298,8 @@ void GenerateAdaptiveGrid_v1(const Mat& magnitude_of_distortion,
     vector<Point>& GDC_Adaptive_Grid_Points,
     const float LowThreshold,
     const int Maxlevel = 6,
-    int minCellWidth = 5,
-    int minCellHeight = 5,
+    int minCellWidth = 10,
+    int minCellHeight = 10,
     float pointSpacing = 20.0) {  // Control minimum distance between points
 
     // Input validation
