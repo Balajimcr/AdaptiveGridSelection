@@ -16,6 +16,7 @@ void createGridVisualization(const cv::Mat& baseImage, const std::vector<cv::Poi
 // Function to display and save an image
 void displayAndSaveImage(const cv::Mat& image, const std::string& windowName) {
     imshow(windowName, image);
+    cv::waitKey(1);
 
     // Construct the filename using the window name and ".png" extension
     std::string filename = windowName + ".png";

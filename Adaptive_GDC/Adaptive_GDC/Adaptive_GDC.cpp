@@ -8,21 +8,6 @@
 #include "GenerateGridv1.h"
 #include "ReconstructMap.h"
 
-void logGridStatistics(int fixedPoints, int adaptivePoints, int TimeTakenms_FG, int TimeTakenms_AG, std::string AdaptiveGridPointsMethod) {
-    int pointsDiff = fixedPoints - adaptivePoints;
-    int TimeDiff = TimeTakenms_FG - TimeTakenms_AG;
-    double savedPercentage = static_cast<double>(pointsDiff) / fixedPoints * 100;
-    double savedPercentage_Time = static_cast<double>(TimeDiff) / TimeTakenms_FG * 100;
-
-    std::cout << "Fixed Grid Points: " << fixedPoints
-        << AdaptiveGridPointsMethod << " : " << adaptivePoints
-        << ", Points Saved: " << pointsDiff
-        << " (" << savedPercentage << "%)"
-        << " ( Time Taken : " << TimeTakenms_AG << "ms)"
-        << " ( Time Saved : " << savedPercentage_Time << "%)"
-        << std::endl;
-}
-
 void TestFishEyeEffect() {
     cv::Size imageSize(1280, 720);
     FisheyeEffect fisheye(imageSize);
