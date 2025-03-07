@@ -140,6 +140,7 @@
     <ClInclude Include="GenerateGrid.h" />
     <ClInclude Include="GenerateGridv1.h" />
     <ClInclude Include="ReconstructMap.h" />
+    <ClInclude Include="ThinPlateSplineInterpolator.hpp" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

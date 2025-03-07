@@ -2,17 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>
-#include <libInterpolate/Interpolators/_2D/ThinPlateSplineInterpolator.hpp>
-
-namespace _2D {
-    class ThinPlateSplineInter : public ThinPlateSplineInterpolator<double>
-    {
-    public:
-        VectorType getX() { return *(this->X); }
-        VectorType getY() { return *(this->Y); }
-        MatrixType getZ() { return *(this->Z); }
-    };
-}
+#include "ThinPlateSplineInterpolator.hpp"
 
 /**
  * Comparison operator for cv::Point to use in std::map

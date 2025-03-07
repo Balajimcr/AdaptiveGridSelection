@@ -18,7 +18,7 @@ void DrawGrid(cv::Mat mSrc, const int Grid_X = 35, const int Grid_Y = 35) {
     const int cellwidth = width / Grid_X;
     const int cellheight = width / Grid_X;
 
-	mSrc.setTo(Scalar::all(255));
+	mSrc.setTo(cv::Scalar::all(255));
 
     for (int i = 0; i < height; i += cellwidth)
         cv::line(mSrc, cv::Point(0, i), cv::Point(width, i), cv::Scalar(255, 0, 0), 2);

@@ -35,5 +35,8 @@
     <ClInclude Include="ReconstructMap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ThinPlateSplineInterpolator.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
