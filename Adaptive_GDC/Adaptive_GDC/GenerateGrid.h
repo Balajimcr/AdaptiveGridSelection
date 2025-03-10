@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GENERATE_GRID_H
+#define GENERATE_GRID_H
 #include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>
@@ -132,3 +133,5 @@ void GenerateAdaptiveGrid_HAG(const cv::Mat& magnitudeOfDistortion,
     cv::waitKey(1);
 #endif
 }
+
+#endif // FISHEYE_EFFECT_H

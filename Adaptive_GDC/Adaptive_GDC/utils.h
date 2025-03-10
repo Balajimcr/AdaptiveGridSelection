@@ -1,3 +1,6 @@
+#ifndef UTILS_H
+#define UTILS_H
+
 #include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>
@@ -53,3 +56,5 @@ void displayAndSaveImage(const cv::Mat& image, const std::string& windowName) {
 inline bool pointExists(const std::vector<cv::Point>& points, const cv::Point& pt) {
     return std::find(points.begin(), points.end(), pt) != points.end();
 }
+
+#endif //

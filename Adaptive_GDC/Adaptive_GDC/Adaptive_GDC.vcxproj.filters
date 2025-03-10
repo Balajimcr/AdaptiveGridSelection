@@ -38,5 +38,11 @@
     <ClInclude Include="ThinPlateSplineInterpolator.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GenerateGridv2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TestImageReconstruct.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

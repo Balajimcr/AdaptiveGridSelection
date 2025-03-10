@@ -139,7 +139,9 @@
     <ClInclude Include="FishEyeEffect.h" />
     <ClInclude Include="GenerateGrid.h" />
     <ClInclude Include="GenerateGridv1.h" />
+    <ClInclude Include="GenerateGridv2.h" />
     <ClInclude Include="ReconstructMap.h" />
+    <ClInclude Include="TestImageReconstruct.hpp" />
     <ClInclude Include="ThinPlateSplineInterpolator.hpp" />
     <ClInclude Include="utils.h" />
   </ItemGroup>

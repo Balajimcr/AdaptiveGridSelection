@@ -1,3 +1,5 @@
+#ifndef FISHEYE_EFFECT_H
+#define FISHEYE_EFFECT_H
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
@@ -71,3 +73,5 @@ private:
         return normalized_magnitude;
     }
 };
+
+#endif // FISHEYE_EFFECT_H
