@@ -1,8 +1,23 @@
-#ifndef GENERATE_GRID_H
-#define GENERATE_GRID_H
+#pragma once
 #include <iostream>
 #include <vector>
+#include <unordered_set>
 #include <opencv2/opencv.hpp>
+
+namespace HAG {
+    // Hash structure for Point to use with unordered_set
+    struct PointHash {
+        size_t operator()(const cv::Point& p) const {
+            return (size_t)(((uint64_t)p.x << 32) | (uint64_t)p.y);
+        }
+    };
+
+    // Custom equality comparator for Point
+    struct PointEqual {
+        bool operator()(const cv::Point& lhs, const cv::Point& rhs) const {
+            return lhs.x == rhs.x && lhs.y == rhs.y;
+        }
+    };
 
 void Generate_FixedGrid(const cv::Mat& distortionMagnitude, std::vector<cv::Point>& fixedGridPoints, int gridX, int gridY) {
 #ifdef DEBUG_GRID
@@ -134,4 +149,76 @@ void GenerateAdaptiveGrid_HAG(const cv::Mat& magnitudeOfDistortion,
 #endif
 }
 
-#endif // FISHEYE_EFFECT_H
+void GenerateAdaptiveGrid_HAG2(
+    const cv::Mat& distortionMagnitude,
+    std::vector<cv::Point>& AdaptiveGridPoints,
+    const int gridX,
+    const int gridY,
+    const float threshold
+) {
+    // First generate the base fixed grid
+    AdaptiveGridPoints.clear();
+
+    // Calculate cell dimensions once
+    const float cellWidth = static_cast<float>(distortionMagnitude.cols) / (gridX - 1);
+    const float cellHeight = static_cast<float>(distortionMagnitude.rows) / (gridY - 1);
+    const int maxX = distortionMagnitude.cols - 1;
+    const int maxY = distortionMagnitude.rows - 1;
+
+    // Pre-allocate memory for efficiency (base grid + potential center points)
+    AdaptiveGridPoints.reserve(gridX * gridY * 2);  // Approximate upper bound
+
+    // Generate base grid points (corner points)
+    for (int j = 0; j < gridY; ++j) {
+        const int y = std::min(static_cast<int>(j * cellHeight), maxY);
+
+        for (int i = 0; i < gridX; ++i) {
+            const int x = std::min(static_cast<int>(i * cellWidth), maxX);
+            AdaptiveGridPoints.emplace_back(x, y);
+        }
+    }
+
+    // Track unique points for efficient insertion
+    std::unordered_set<cv::Point, PointHash, PointEqual> uniquePoints;
+    for (const auto& pt : AdaptiveGridPoints) {
+        uniquePoints.insert(pt);
+    }
+
+    // Add center points for cells where value exceeds threshold
+    for (int j = 0; j < gridY - 1; ++j) {
+        for (int i = 0; i < gridX - 1; ++i) {
+            // Calculate corners of this cell
+            const int topLeftX = std::min(static_cast<int>(i * cellWidth), maxX);
+            const int topLeftY = std::min(static_cast<int>(j * cellHeight), maxY);
+            const int bottomRightX = std::min(static_cast<int>((i + 1) * cellWidth), maxX);
+            const int bottomRightY = std::min(static_cast<int>((j + 1) * cellHeight), maxY);
+
+            // Calculate center of the cell
+            int centerX = (topLeftX + bottomRightX) / 2;
+            int centerY = (topLeftY + bottomRightY) / 2;
+
+            // Check if center value is above threshold
+            float centerValue = 0.0f;
+            if (centerY >= 0 && centerY < distortionMagnitude.rows &&
+                centerX >= 0 && centerX < distortionMagnitude.cols) {
+                centerValue = distortionMagnitude.at<float>(centerY, centerX);
+            }
+
+            // Add center point if gradient magnitude is above threshold
+            if (centerValue > threshold) {
+                cv::Point centerPoint(centerX, centerY);
+                if (uniquePoints.insert(centerPoint).second) {
+                    AdaptiveGridPoints.push_back(centerPoint);
+                }
+            }
+        }
+    }
+
+    // Log results
+    std::cout << "Enhanced grid generated: " << AdaptiveGridPoints.size() << " points" << std::endl;
+    std::cout << "  - Base grid size: " << gridX << "x" << gridY << " = " << gridX * gridY << " points" << std::endl;
+    std::cout << "  - HAG v2 Size: " << AdaptiveGridPoints.size() - gridX * gridY << std::endl;
+}
+
+} // namespace HAG
+

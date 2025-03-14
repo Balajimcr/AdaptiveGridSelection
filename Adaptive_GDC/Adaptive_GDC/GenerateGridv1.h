@@ -11,14 +11,14 @@ using namespace std;
 
 // Hash structure for Point to use with unordered_set
 struct PointHash {
-    size_t operator()(const Point& p) const {
+    size_t operator()(const cv::Point& p) const {
         return (size_t)(((uint64_t)p.x << 32) | (uint64_t)p.y);
     }
 };
 
 // Custom equality comparator for Point
 struct PointEqual {
-    bool operator()(const Point& lhs, const Point& rhs) const {
+    bool operator()(const cv::Point& lhs, const cv::Point& rhs) const {
         return lhs.x == rhs.x && lhs.y == rhs.y;
     }
 };

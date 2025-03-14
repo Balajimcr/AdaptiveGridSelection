@@ -43,7 +43,26 @@ void createGridVisualization(const cv::Mat& baseImage, const std::vector<cv::Poi
 
 // Function to display and save an image
 void displayAndSaveImage(const cv::Mat& image, const std::string& windowName) {
-    imshow(windowName, image);
+    cv::Mat displayImage = image;
+    const int maxWidth = 1280;
+    const int maxHeight = 720;
+
+    // Check if the image resolution is more than 1280x720
+    if (image.cols > maxWidth || image.rows > maxHeight) {
+        float aspectRatio = static_cast<float>(image.cols) / image.rows;
+        int newWidth = maxWidth;
+        int newHeight = maxHeight;
+
+        if (aspectRatio > 1) {
+            newHeight = static_cast<int>(maxWidth / aspectRatio);
+        } else {
+            newWidth = static_cast<int>(maxHeight * aspectRatio);
+        }
+
+        cv::resize(image, displayImage, cv::Size(newWidth, newHeight));
+    }
+
+    imshow(windowName, displayImage);
     cv::waitKey(1);
 
     // Construct the filename using the window name and ".png" extension
