@@ -29,16 +29,10 @@
     <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GenerateGridv1.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ReconstructMap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ThinPlateSplineInterpolator.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GenerateGridv2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TestImageReconstruct.hpp">

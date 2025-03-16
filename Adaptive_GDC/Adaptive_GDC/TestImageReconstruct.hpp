@@ -11,8 +11,6 @@
 #include "FishEyeEffect.h"
 #include "GenerateGrid.h"
 #include "utils.h"
-#include "GenerateGridv1.h"
-#include "GenerateGridv2.h"
 #include "ReconstructMap.h"
 
 // Structure to store grid generation results

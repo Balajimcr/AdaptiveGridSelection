@@ -6,355 +6,154 @@
 #include <fstream>
 #include "FishEyeEffect.h"
 #include "GenerateGrid.h"
+#include "GenerateHAG.hpp"
 #include "utils.h"
-#include "GenerateGridv1.h"
-#include "GenerateGridv2.h"
 #include "ReconstructMap.h"
 #include "TestImageReconstruct.hpp"
 
 void TestFishEyeEffect() {
     cv::Size imageSize(1280, 720);
     FisheyeEffect fisheye(imageSize);
-    double distortionStrength = 2.5;
+    float motionStrength = 1.0f;
+    int smoothingWindowSize = 15;
 
     cv::Mat mapX, mapY, normalizedMagnitude;
-    fisheye.generateDistortionMaps(distortionStrength, mapX, mapY, normalizedMagnitude);
+    fisheye.generateDistortionMapsCAMStab(mapX, mapY, normalizedMagnitude,motionStrength,smoothingWindowSize);
+
+    // Create color image from grayscale magnitude map
+    cv::Mat distortionMagnitude_Color;
+    cv::convertScaleAbs(normalizedMagnitude, normalizedMagnitude, 255);
+    cv::applyColorMap(normalizedMagnitude, distortionMagnitude_Color, cv::COLORMAP_JET);
 
     // Use mapX, mapY, and normalizedMagnitude as needed
-    cv::imshow("Normalized Magnitude", normalizedMagnitude);
-    cv::waitKey(0);
+    cv::imshow("Normalized Magnitude", distortionMagnitude_Color);
+    cv::waitKey();
 }
 
 void TestAdaptiveGridGeneration() {
-    const cv::Size imageSize(3840,2160);
+    // Test parameters
+    const cv::Size imageSize(1280, 720);
     const int gridX = 30, gridY = 30;
-    const int gridX_FG = 33, gridY_FG = 33;
-    const float GradientLowThreshold = 0.85;
-    const float DistorstionStrength = 2.75;
+    const int fixedGridX = 33, fixedGridY = 33;
+    const float distortionThreshold = 0.85f;
+    const float distortionStrength = 2.75f;
+    const int numIterations = 1;
+
+    std::cout << "=== Testing Adaptive Grid Generation ===" << std::endl;
+    std::cout << "Image Size: " << imageSize.width << "x" << imageSize.height << std::endl;
+    std::cout << "Distortion Strength: " << distortionStrength << std::endl;
+    std::cout << "Threshold: " << distortionThreshold << std::endl << std::endl;
 
     // Initialize fisheye distortion
     FisheyeEffect distorter(imageSize);
 
-    // Compute distortion magnitude
-    cv::Mat mapX, mapY;
-    cv::Mat distortionMagnitude;
-
-    distorter.generateDistortionMaps(DistorstionStrength, mapX, mapY, distortionMagnitude);
+    // Compute distortion maps and magnitude
+    cv::Mat mapX, mapY, distortionMagnitude;
+    distorter.generateDistortionMaps(distortionStrength, mapX, mapY, distortionMagnitude);
 
     // Convert to 8-bit for visualization
     cv::Mat distortionMagnitude_8U;
-    convertScaleAbs(distortionMagnitude, distortionMagnitude_8U, 255);
+    cv::convertScaleAbs(distortionMagnitude, distortionMagnitude_8U, 255);
 
-    cv::TickMeter tm_FM, tm_HAG, tm_v1;
+    // Apply colormap for better visualization
+    cv::Mat distortionHeatmap;
+    cv::applyColorMap(distortionMagnitude_8U, distortionHeatmap, cv::COLORMAP_JET);
+    displayAndSaveImage(distortionHeatmap, "Distortion Magnitude Map");
 
-    // Generate grid points
-    std::vector<cv::Point> fixedGridPoints, adaptiveGridPoints, adaptiveGridPoints_v1;
-    tm_FM.start();
-    HAG::Generate_FixedGrid(distortionMagnitude, fixedGridPoints, gridX_FG, gridY_FG);
-    tm_FM.stop();
-    tm_HAG.start();
-    HAG::GenerateAdaptiveGrid_HAG(distortionMagnitude, adaptiveGridPoints, gridX, gridY, GradientLowThreshold);
-    tm_HAG.stop();
+    // Timing and point storage
+    cv::TickMeter tm_FixedGrid, tm_HAG, tm_HAG_v1;
+    std::vector<cv::Point> fixedGridPoints, HAG_Points, HAG_v1_Points;
 
-    tm_v1.start();
-    HAG::GenerateAdaptiveGrid_HAG2(distortionMagnitude, adaptiveGridPoints_v1, gridX,gridY,GradientLowThreshold);
-    tm_v1.stop();
+    // Accumulate total time
+    double totalTime_FixedGrid = 0, totalTime_HAG = 0, totalTime_HAG_v1 = 0;
+
+    // Pre-allocate vectors
+    fixedGridPoints.reserve(fixedGridX * fixedGridY);
+    HAG_Points.reserve(gridX * gridY * 2);
+    HAG_v1_Points.reserve(gridX * gridY * 2); // Estimate maximum points
+
+    // Run tests
+    for (int i = 0; i < numIterations; ++i) {
+        fixedGridPoints.clear();
+        HAG_Points.clear();
+
+        tm_FixedGrid.start();
+        HAG::Generate_FixedGrid(distortionMagnitude, fixedGridPoints, fixedGridX, fixedGridY);
+        tm_FixedGrid.stop();
+        totalTime_FixedGrid += tm_FixedGrid.getTimeMilli();
+        tm_FixedGrid.reset();
+
+        tm_HAG.start();
+        HAG::GenerateAdaptiveGrid_HAG(distortionMagnitude, HAG_Points, gridX, gridY, distortionThreshold);
+        tm_HAG.stop();
+        totalTime_HAG += tm_HAG.getTimeMilli();
+        tm_HAG.reset();
+
+        tm_HAG_v1.start();
+        HAG::GenerateAdaptiveGrid_HAG_v1(distortionMagnitude, HAG_v1_Points, gridX, gridY, distortionThreshold);
+        tm_HAG_v1.stop();
+        totalTime_HAG_v1 += tm_HAG_v1.getTimeMilli();
+        tm_HAG_v1.reset();
+    }
+
+    // Calculate average times
+    double avgTime_FixedGrid = totalTime_FixedGrid / numIterations;
+    double avgTime_HAG = totalTime_HAG / numIterations;
+    double avgTime_HAG_v1 = totalTime_HAG_v1 / numIterations;
     
-    std::cout << "[Timing] Time Taken for Fixed Grid: " << tm_FM.getTimeMilli() << " ms, Total Points: " << fixedGridPoints.size() << std::endl;
-    std::cout << "[Timing] Time Taken for HAG   Grid: " << tm_HAG.getTimeMilli()<< " ms, Total Points: " << adaptiveGridPoints.size() << std::endl;
-    std::cout << "[Timing] Time Taken for RD(V1)Grid: " << tm_v1.getTimeMilli() << " ms, Total Points: " << adaptiveGridPoints_v1.size() << std::endl;
+    // Count adaptive points
+    int adaptivePointsHAG = static_cast<int>(HAG_Points.size()) - gridX * gridY;
+    int adaptivePointsHAG_v1 = static_cast<int>(HAG_v1_Points.size()); // All points are adaptive in v1
 
-    // Visualize and draw grids
-    cv::Mat fixedGridImage, adaptiveGridImage, adaptiveGridImage_v1;
-    createGridVisualization(distortionMagnitude_8U, fixedGridPoints, fixedGridImage);
-    createGridVisualization(distortionMagnitude_8U, adaptiveGridPoints, adaptiveGridImage);
-    createGridVisualization(distortionMagnitude_8U, adaptiveGridPoints_v1, adaptiveGridImage_v1);
+    // Calculate efficiency metrics - points per millisecond
+    double fixedGridEfficiency = fixedGridPoints.size() / std::max(0.1, avgTime_FixedGrid);
+    double HAGEfficiency = HAG_Points.size() / std::max(0.1, avgTime_HAG);
+    double HAG_v1Efficiency = HAG_v1_Points.size() / std::max(0.1, avgTime_HAG_v1);
+
+    // Print comparison table
+    std::cout << "=== Grid Generation Comparison (over " << numIterations << " runs) ===" << std::endl;
+    std::cout << std::left << std::setw(15) << "Method" << std::setw(15) << "Avg Time (ms)" << std::setw(15) << "Total Points" << std::setw(15) << "Adaptive Points" << std::setw(15) << "Points/ms" << std::endl;
+    std::cout << std::left << std::setw(15) << "Fixed Grid" << std::setw(15) << std::fixed << std::setprecision(3) << avgTime_FixedGrid << std::setw(15) << fixedGridPoints.size() << std::setw(15) << "N/A" << std::setw(15) << std::fixed << std::setprecision(2) << fixedGridEfficiency << std::endl;
+    std::cout << std::left << std::setw(15) << "HAG" << std::setw(15) << std::fixed << std::setprecision(3) << avgTime_HAG << std::setw(15) << HAG_Points.size() << std::setw(15) << adaptivePointsHAG << std::setw(15) << std::fixed << std::setprecision(2) << HAGEfficiency << std::endl;
+    std::cout << std::left << std::setw(15) << "HAG_v1" << std::setw(15) << std::fixed << std::setprecision(3) << avgTime_HAG_v1 << std::setw(15) << HAG_v1_Points.size() << std::setw(15) << adaptivePointsHAG_v1 << std::setw(15) << std::fixed << std::setprecision(2) << HAG_v1Efficiency << std::endl;
+
+    // Helper function to create grid visualization with colored points
+    auto createEnhancedGridVisualization = [&distortionMagnitude_8U](const std::vector<cv::Point>& points, const std::string& title, int baseGridSize) {
+        cv::Mat output;
+        cv::cvtColor(distortionMagnitude_8U, output, cv::COLOR_GRAY2BGR);
+        cv::applyColorMap(output, output, cv::COLORMAP_JET);
+
+        for (size_t i = 0; i < points.size(); i++) {
+            cv::Scalar color = (i < baseGridSize) ? cv::Scalar(255, 0, 0) :
+                cv::Scalar(0, 255, 255 * (1.0f - std::min(1.0f, static_cast<float>(i - baseGridSize) / std::max(1.0f, static_cast<float>(points.size() - baseGridSize)))));
+            cv::circle(output, points[i], 1, color, 2, cv::LINE_AA);
+        }
+
+        cv::putText(output, title, cv::Point(20, 40), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 255, 255), 2);
+        cv::putText(output, "Points: " + std::to_string(points.size()) + ((points.size() > baseGridSize) ? " (" + std::to_string(points.size() - baseGridSize) + " adaptive)" : ""),
+            cv::Point(20, 80), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 255, 255), 2);
+        return output;
+        };
+
+    // Generate visualizations
+    cv::Mat fixedGridImage = createEnhancedGridVisualization(fixedGridPoints, "Fixed Grid", fixedGridX * fixedGridY);
+    cv::Mat HAGImage = createEnhancedGridVisualization(HAG_Points, "HAG", gridX * gridY);
+    cv::Mat HAGv1Image = createEnhancedGridVisualization(HAG_v1_Points, "HAG v1", gridX * gridY);
 
     // Display and save results
     displayAndSaveImage(fixedGridImage, "Fixed Grid Map");
-    displayAndSaveImage(adaptiveGridImage, "Adaptive Grid Map");
-    displayAndSaveImage(adaptiveGridImage_v1, "Adaptive Grid Map HAG2");
-
-    cv::waitKey();
+    displayAndSaveImage(HAGImage, "HAG Grid Map");
+    displayAndSaveImage(HAGv1Image, "HAG Grid v1 Map");
 }
-
-void TestAdaptiveGridRemapping1() {
-    const cv::Size imageSize(1280, 720);
-    const int gridX = 30, gridY = 30;
-    const int gridX_FG = 33, gridY_FG = 33;
-    const float GradientLowThreshold = 0.95f;
-    const float DistorstionStrength = 2.75;
-
-    // Create Outputs directory if it doesn't exist
-    create_directory("Outputs");
-
-    // Create a single CSV file for all outputs
-    std::ofstream outputCSV("Outputs/grid_analysis_results.csv", std::ios::out);
-
-    // Initialize fisheye distortion
-    FisheyeEffect distorter(imageSize);
-
-    // Compute distortion magnitude
-    cv::Mat mapX, mapY;
-    cv::Mat distortionMagnitude;
-
-    distorter.generateDistortionMaps(DistorstionStrength, mapX, mapY, distortionMagnitude);
-
-    // Convert to 8-bit for visualization
-    cv::Mat distortionMagnitude_8U;
-    convertScaleAbs(distortionMagnitude, distortionMagnitude_8U, 255);
-
-    cv::TickMeter tm_FM, tm_HAG, tm_v1, tm_v2;
-
-    // Generate grid points
-    std::vector<cv::Point> fixedGridPoints, adaptiveGridPoints, adaptiveGridPoints_v1, adaptiveGridPoints_v2;
-    tm_FM.start();
-    HAG::Generate_FixedGrid(distortionMagnitude, fixedGridPoints, gridX_FG, gridY_FG);
-    tm_FM.stop();
-    tm_HAG.start();
-    HAG::GenerateAdaptiveGrid_HAG(distortionMagnitude, adaptiveGridPoints, gridX, gridY, GradientLowThreshold);
-    tm_HAG.stop();
-
-    tm_v1.start();
-    HAG::GenerateAdaptiveGrid_HAG2(distortionMagnitude, adaptiveGridPoints_v1, gridX, gridY, GradientLowThreshold);
-    tm_v1.stop();
-
-    tm_v2.start();
-    GenerateAdaptiveGrid_v1(distortionMagnitude, adaptiveGridPoints_v2, GradientLowThreshold);
-    tm_v2.stop();
-
-    std::cout << "[Timing] Time Taken for Fixed Grid: " << tm_FM.getTimeMilli() << " ms, Total Points: " << fixedGridPoints.size() << std::endl;
-    std::cout << "[Timing] Time Taken for HAG   Grid: " << tm_HAG.getTimeMilli() << " ms, Total Points: " << adaptiveGridPoints.size() << std::endl;
-    std::cout << "[Timing] Time Taken for HAG2  Grid: " << tm_v1.getTimeMilli() << " ms, Total Points: " << adaptiveGridPoints_v1.size() << std::endl;
-    std::cout << "[Timing] Time Taken for HAG_V2Grid: " << tm_v2.getTimeMilli() << " ms, Total Points: " << adaptiveGridPoints_v2.size() << std::endl;
-
-    // Visualize and draw grids
-    cv::Mat fixedGridImage, adaptiveGridImage, adaptiveGridImage_v1, adaptiveGridImage_v2;
-    createGridVisualization(distortionMagnitude_8U, fixedGridPoints, fixedGridImage);
-    createGridVisualization(distortionMagnitude_8U, adaptiveGridPoints, adaptiveGridImage);
-    createGridVisualization(distortionMagnitude_8U, adaptiveGridPoints_v1, adaptiveGridImage_v1);
-    createGridVisualization(distortionMagnitude_8U, adaptiveGridPoints_v2, adaptiveGridImage_v2);
-
-    // Display and save results
-    displayAndSaveImage(fixedGridImage, "Grid_Fixed Grid Map");
-    displayAndSaveImage(adaptiveGridImage, "Grid_Adaptive Grid Map");
-    displayAndSaveImage(adaptiveGridImage_v1, "Grid_Adaptive Grid Map 2");
-    displayAndSaveImage(adaptiveGridImage_v2, "Grid_Adaptive Grid Map v2");
-
-    // Image Remapping - Reconstruction and evaluation
-    std::cout << "\n=== Distortion Map Reconstruction Evaluation ===\n" << std::endl;
-
-    // Reconstruct and evaluate each grid type
-    cv::Mat fixedReconstructedX, fixedReconstructedY;
-    cv::Mat adaptiveReconstructedX, adaptiveReconstructedY;
-    cv::Mat adaptiveV1ReconstructedX, adaptiveV1ReconstructedY;
-    cv::Mat adaptiveV2ReconstructedX, adaptiveV2ReconstructedY;
-
-    // Fixed Grid
-    std::cout << "Evaluating Fixed Grid (" << fixedGridPoints.size() << " points):" << std::endl;
-    ReconstructionErrorMetrics fixedMetrics = ReconstructMap(
-        mapX, mapY, fixedGridPoints, fixedReconstructedX, fixedReconstructedY);
-
-    // HAG Grid
-    std::cout << "\nEvaluating HAG Grid (" << adaptiveGridPoints.size() << " points):" << std::endl;
-    ReconstructionErrorMetrics hagMetrics = ReconstructMap(
-        mapX, mapY, adaptiveGridPoints, adaptiveReconstructedX, adaptiveReconstructedY);
-
-    // RD(V1) Grid
-    std::cout << "\nEvaluating RD(V1) Grid (" << adaptiveGridPoints_v1.size() << " points):" << std::endl;
-    ReconstructionErrorMetrics v1Metrics = ReconstructMap(
-        mapX, mapY, adaptiveGridPoints_v1, adaptiveV1ReconstructedX, adaptiveV1ReconstructedY);
-    
-    // RD(V1) Grid
-    std::cout << "\nEvaluating RD(V2) Grid (" << adaptiveGridPoints_v2.size() << " points):" << std::endl;
-    ReconstructionErrorMetrics v2Metrics = ReconstructMap(
-        mapX, mapY, adaptiveGridPoints_v2, adaptiveV2ReconstructedX, adaptiveV2ReconstructedY);
-
-    // Display error maps
-    displayAndSaveImage(fixedMetrics.errorMap, "ReConError_Fixed Grid Error Map");
-    displayAndSaveImage(hagMetrics.errorMap, "ReConError_HAG Grid Error Map");
-    displayAndSaveImage(v1Metrics.errorMap, "ReConError_RD(V1) Grid Error Map");
-    displayAndSaveImage(v2Metrics.errorMap, "ReConError_RD(V2) Grid Error Map");
-
-    {
-        // Create comparison table
-        std::cout << "\n=== Reconstruction Results Summary ===\n" << std::endl;
-        std::cout << "Grid Type   | Points | RMSE      | Mean Error | Max Error  | PSNR (dB) | Time (ms)" << std::endl;
-        std::cout << "----------------------------------------------------------------------------" << std::endl;
-
-        printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
-            "Fixed Grid", fixedGridPoints.size(), fixedMetrics.rmse,
-            fixedMetrics.meanError, fixedMetrics.maxError,
-            fixedMetrics.psnr, fixedMetrics.executionTimeMs);
-
-        printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
-            "HAG Grid", adaptiveGridPoints.size(), hagMetrics.rmse,
-            hagMetrics.meanError, hagMetrics.maxError,
-            hagMetrics.psnr, hagMetrics.executionTimeMs);
-
-        printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
-            "RD(V1) Grid", adaptiveGridPoints_v1.size(), v1Metrics.rmse,
-            v1Metrics.meanError, v1Metrics.maxError,
-            v1Metrics.psnr, v1Metrics.executionTimeMs);
-        printf("%-12s| %-7zu| %-10.5f| %-11.5f| %-11.5f| %-10.2f| %-9.2f\n",
-            "RD(V2) Grid", adaptiveGridPoints_v1.size(), v2Metrics.rmse,
-            v2Metrics.meanError, v2Metrics.maxError,
-            v2Metrics.psnr, v2Metrics.executionTimeMs);
-    }
-
-    // Create side-by-side comparison of error maps
-    cv::Mat comparisonImage(imageSize.height, imageSize.width * 3, CV_8UC3);
-    fixedMetrics.errorMap.copyTo(comparisonImage(cv::Rect(0, 0, imageSize.width, imageSize.height)));
-    hagMetrics.errorMap.copyTo(comparisonImage(cv::Rect(imageSize.width, 0, imageSize.width, imageSize.height)));
-    v1Metrics.errorMap.copyTo(comparisonImage(cv::Rect(2 * imageSize.width, 0, imageSize.width, imageSize.height)));
-
-    // Add grid type labels to the top of each error map in the comparison
-    cv::putText(comparisonImage, "Fixed Grid",
-        cv::Point(imageSize.width / 2 - 60, 20),
-        cv::FONT_HERSHEY_SIMPLEX, 0.8,
-        cv::Scalar(255, 255, 255), 2);
-
-    cv::putText(comparisonImage, "HAG Grid",
-        cv::Point(imageSize.width + imageSize.width / 2 - 60, 20),
-        cv::FONT_HERSHEY_SIMPLEX, 0.8,
-        cv::Scalar(255, 255, 255), 2);
-
-    cv::putText(comparisonImage, "RD(V1) Grid",
-        cv::Point(2 * imageSize.width + imageSize.width / 2 - 60, 20),
-        cv::FONT_HERSHEY_SIMPLEX, 0.8,
-        cv::Scalar(255, 255, 255), 2);
-
-    displayAndSaveImage(comparisonImage, "ReCon_Error Map Comparison");
-
-    // Optional: Demonstrate the reconstructed distortion on a test image
-    cv::Mat testImage(imageSize,CV_8UC3);
-    DrawGrid(testImage);
-    if (!testImage.empty()) {
-        cv::resize(testImage, testImage, imageSize);
-
-        // Apply original distortion
-        cv::Mat originalDistorted;
-        cv::remap(testImage, originalDistorted, mapX, mapY, cv::INTER_CUBIC, cv::BORDER_REFLECT);
-
-        // Apply reconstructed distortions
-        cv::Mat fixedDistorted, hagDistorted, v1Distorted;
-        cv::remap(testImage, fixedDistorted, fixedReconstructedX, fixedReconstructedY, cv::INTER_CUBIC, cv::BORDER_REFLECT);
-        cv::remap(testImage, hagDistorted, adaptiveReconstructedX, adaptiveReconstructedY, cv::INTER_CUBIC, cv::BORDER_REFLECT);
-        cv::remap(testImage, v1Distorted, adaptiveV1ReconstructedX, adaptiveV1ReconstructedY, cv::INTER_CUBIC, cv::BORDER_REFLECT);
-
-        // Display results
-        displayAndSaveImage(originalDistorted, "ReCon_Original Distortion");
-        displayAndSaveImage(fixedDistorted, "ReCon_Fixed Grid Distortion");
-        displayAndSaveImage(hagDistorted, "ReCon_HAG Grid Distortion");
-        displayAndSaveImage(v1Distorted, "ReCon_RD(V1) Grid Distortion");
-
-        // Create side-by-side comparison
-        cv::Mat distortionComparison(imageSize.height, imageSize.width * 4, CV_8UC3);
-        originalDistorted.copyTo(distortionComparison(cv::Rect(0, 0, imageSize.width, imageSize.height)));
-        fixedDistorted.copyTo(distortionComparison(cv::Rect(imageSize.width, 0, imageSize.width, imageSize.height)));
-        hagDistorted.copyTo(distortionComparison(cv::Rect(2 * imageSize.width, 0, imageSize.width, imageSize.height)));
-        v1Distorted.copyTo(distortionComparison(cv::Rect(3 * imageSize.width, 0, imageSize.width, imageSize.height)));
-
-        // Add labels
-        cv::putText(distortionComparison, "Original",
-            cv::Point(imageSize.width / 2 - 50, 30),
-            cv::FONT_HERSHEY_SIMPLEX, 0.8,
-            cv::Scalar(255, 255, 255), 2);
-
-        cv::putText(distortionComparison, "Fixed Grid",
-            cv::Point(imageSize.width + imageSize.width / 2 - 60, 30),
-            cv::FONT_HERSHEY_SIMPLEX, 0.8,
-            cv::Scalar(255, 255, 255), 2);
-
-        cv::putText(distortionComparison, "HAG Grid",
-            cv::Point(2 * imageSize.width + imageSize.width / 2 - 60, 30),
-            cv::FONT_HERSHEY_SIMPLEX, 0.8,
-            cv::Scalar(255, 255, 255), 2);
-
-        cv::putText(distortionComparison, "RD(V1) Grid",
-            cv::Point(3 * imageSize.width + imageSize.width / 2 - 60, 30),
-            cv::FONT_HERSHEY_SIMPLEX, 0.8,
-            cv::Scalar(255, 255, 255), 2);
-
-        displayAndSaveImage(distortionComparison, "ReCon_Distortion Comparison");
-    }
-
-    // Calculate compression ratios
-    double originalSize = 2 * imageSize.width * imageSize.height; // X and Y maps
-    double fixedGridSize = fixedGridPoints.size();
-    double hagGridSize = adaptiveGridPoints.size();
-    double v1GridSize = adaptiveGridPoints_v1.size();
-
-    {
-        // Detailed compression ratio table
-        std::cout << "\n=== Compression Ratio ===" << std::endl;
-        std::cout << "Grid Type   | Points | Original Size (KB) | Grid Size (KB) | Compression Ratio" << std::endl;
-        std::cout << "----------------------------------------------------------------------------" << std::endl;
-
-        printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
-            "Fixed Grid", fixedGridPoints.size(), originalSize / 1024.0,
-            fixedGridSize / 1024.0, originalSize / fixedGridSize);
-
-        printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
-            "HAG Grid", adaptiveGridPoints.size(), originalSize / 1024.0,
-            hagGridSize / 1024.0, originalSize / hagGridSize);
-
-        printf("%-12s| %-7zu| %-19.2f| %-14.2f| %-17.2f\n",
-            "RD(V1) Grid", adaptiveGridPoints_v1.size(), originalSize / 1024.0,
-            v1GridSize / 1024.0, originalSize / v1GridSize);
-    }
-
-    if (outputCSV.is_open()) {
-        // Write timing section to CSV
-        outputCSV << "TIMING RESULTS\n";
-        outputCSV << "Grid Type,Time (ms),Total Points\n";
-        outputCSV << "Fixed Grid," << tm_FM.getTimeMilli() << "," << fixedGridPoints.size() << "\n";
-        outputCSV << "HAG Grid," << tm_HAG.getTimeMilli() << "," << adaptiveGridPoints.size() << "\n";
-        outputCSV << "RD(V1) Grid," << tm_v1.getTimeMilli() << "," << adaptiveGridPoints_v1.size() << "\n\n";
-
-        // Write reconstruction results section to CSV
-        outputCSV << "RECONSTRUCTION RESULTS\n";
-        outputCSV << "Grid Type,Points,RMSE,Mean Error,Max Error,PSNR (dB),Time (ms)\n";
-        outputCSV << "Fixed Grid," << fixedGridPoints.size() << ","
-            << fixedMetrics.rmse << "," << fixedMetrics.meanError << ","
-            << fixedMetrics.maxError << "," << fixedMetrics.psnr << ","
-            << fixedMetrics.executionTimeMs << "\n";
-        outputCSV << "HAG Grid," << adaptiveGridPoints.size() << ","
-            << hagMetrics.rmse << "," << hagMetrics.meanError << ","
-            << hagMetrics.maxError << "," << hagMetrics.psnr << ","
-            << hagMetrics.executionTimeMs << "\n";
-        outputCSV << "RD(V1) Grid," << adaptiveGridPoints_v1.size() << ","
-            << v1Metrics.rmse << "," << v1Metrics.meanError << ","
-            << v1Metrics.maxError << "," << v1Metrics.psnr << ","
-            << v1Metrics.executionTimeMs << "\n\n";
-
-        // Write compression results section to CSV
-        outputCSV << "COMPRESSION RESULTS\n";
-        outputCSV << "Grid Type,Points,Original Size (KB),Grid Size (KB),Compression Ratio\n";
-        outputCSV << "Fixed Grid," << fixedGridPoints.size() << ","
-            << originalSize / 1024.0 << "," << fixedGridSize / 1024.0 << ","
-            << originalSize / fixedGridSize << "\n";
-        outputCSV << "HAG Grid," << adaptiveGridPoints.size() << ","
-            << originalSize / 1024.0 << "," << hagGridSize / 1024.0 << ","
-            << originalSize / hagGridSize << "\n";
-        outputCSV << "RD(V1) Grid," << adaptiveGridPoints_v1.size() << ","
-            << originalSize / 1024.0 << "," << v1GridSize / 1024.0 << ","
-            << originalSize / v1GridSize << "\n";
-
-        // Close the CSV file
-        outputCSV.close();
-    }
-
-    cv::waitKey();
-}
-
 
 void TestAdaptiveGridRemapping() {
+    // Test parameters
     const cv::Size imageSize(1280, 720);
     const int gridX = 30, gridY = 30;
-    const int gridX_FG = 33, gridY_FG = 33;
-    const float GradientLowThreshold = 0.95f;
-    const float DistortionStrength = 2.75;
+    const int fixedGridX = 33, fixedGridY = 33;
+    const float GradientLowThreshold = 0.85f;
+    const float DistortionStrength = 2.75f;
+    const int numIterations = 50;
 
     // Create evaluator
     GridEvaluator evaluator(imageSize, DistortionStrength);
@@ -368,7 +167,7 @@ void TestAdaptiveGridRemapping() {
     evaluator.registerGridAlgorithm(
         "Fixed Grid",
         &HAG::Generate_FixedGrid,  // Use function pointer style
-        gridX_FG, gridY_FG
+        fixedGridX, fixedGridY
     );
 
     // HAG Grid (takes Mat, vector<Point>, int, int, float)
@@ -379,21 +178,21 @@ void TestAdaptiveGridRemapping() {
         GradientLowThreshold
     );
 
-    //// RD(V1) Grid (takes Mat, vector<Point>, float, int)
-    //evaluator.registerGridAlgorithm(
-    //    "RD(V1) Grid",
-    //    &GenerateAdaptiveGrid_v1,
-    //    GradientLowThreshold,
-    //    6  // Max level
-    //);
-
-    // V2 Grid (takes Mat, vector<Point>, int, int, float)
+    // HAG Grid (takes Mat, vector<Point>, int, int, float)
     evaluator.registerGridAlgorithm(
-        "RD(V2) Grid",
-        &HAG::GenerateAdaptiveGrid_HAG2,
+        "HAGv1Grid",
+        &HAG::GenerateAdaptiveGrid_HAG_v1,
         gridX, gridY,
         GradientLowThreshold
     );
+
+    //// V2 Grid (takes Mat, vector<Point>, int, int, float)
+    //evaluator.registerGridAlgorithm(
+    //    "RD(V2) Grid",
+    //    &HAG::GenerateAdaptiveGrid_HAG2,
+    //    gridX, gridY,
+    //    GradientLowThreshold
+    //);
 
     // Evaluate all registered algorithms
     evaluator.evaluateAllGrids();
@@ -405,7 +204,10 @@ void TestAdaptiveGridRemapping() {
 
 int main() {
     TestAdaptiveGridGeneration();
-	//TestAdaptiveGridRemapping();
+	TestAdaptiveGridRemapping();
+    //TestFishEyeEffect();
 
+    // Wait for user input
+    cv::waitKey();
     return 0;
 }
