@@ -6,7 +6,7 @@
 #include <fstream>
 #include "FishEyeEffect.h"
 #include "GenerateGrid.h"
-#include "GenerateHAG.hpp"
+#include "GenerateGridv2.h"
 #include "utils.h"
 #include "ReconstructMap.h"
 #include "TestImageReconstruct.hpp"
@@ -90,7 +90,7 @@ void TestAdaptiveGridGeneration() {
         tm_HAG.reset();
 
         tm_HAG_v1.start();
-        HAG::GenerateAdaptiveGrid_HAG_v1(distortionMagnitude, HAG_v1_Points, gridX, gridY, distortionThreshold);
+        HAG::GenerateAdaptiveGrid_HAG_v2(distortionMagnitude, HAG_v1_Points, gridX, gridY, distortionThreshold);
         tm_HAG_v1.stop();
         totalTime_HAG_v1 += tm_HAG_v1.getTimeMilli();
         tm_HAG_v1.reset();
@@ -189,7 +189,7 @@ void TestAdaptiveGridRemapping() {
     //// V2 Grid (takes Mat, vector<Point>, int, int, float)
     //evaluator.registerGridAlgorithm(
     //    "RD(V2) Grid",
-    //    &HAG::GenerateAdaptiveGrid_HAG2,
+    //    &HAG::GenerateAdaptiveGrid_HAG_v2,
     //    gridX, gridY,
     //    GradientLowThreshold
     //);
@@ -204,7 +204,7 @@ void TestAdaptiveGridRemapping() {
 
 int main() {
     TestAdaptiveGridGeneration();
-	TestAdaptiveGridRemapping();
+	//TestAdaptiveGridRemapping();
     //TestFishEyeEffect();
 
     // Wait for user input
