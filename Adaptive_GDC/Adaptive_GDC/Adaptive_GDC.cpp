@@ -37,7 +37,7 @@ void TestAdaptiveGridGeneration() {
     const int fixedGridX = 33, fixedGridY = 33;
     const float distortionThreshold = 0.85f;
     const float distortionStrength = 2.75f;
-    const int numIterations = 1;
+    const int numIterations = 20;
 
     std::cout << "=== Testing Adaptive Grid Generation ===" << std::endl;
     std::cout << "Image Size: " << imageSize.width << "x" << imageSize.height << std::endl;
@@ -90,7 +90,7 @@ void TestAdaptiveGridGeneration() {
         tm_HAG.reset();
 
         tm_HAG_v1.start();
-        HAG::GenerateAdaptiveGrid_HAG_v2(distortionMagnitude, HAG_v1_Points, gridX, gridY, distortionThreshold);
+        HAG::GenerateAdaptiveGrid_HAG_v1(distortionMagnitude, HAG_v1_Points, gridX, gridY, distortionThreshold);
         tm_HAG_v1.stop();
         totalTime_HAG_v1 += tm_HAG_v1.getTimeMilli();
         tm_HAG_v1.reset();
@@ -112,7 +112,7 @@ void TestAdaptiveGridGeneration() {
 
     // Print comparison table
     std::cout << "=== Grid Generation Comparison (over " << numIterations << " runs) ===" << std::endl;
-    std::cout << std::left << std::setw(15) << "Method" << std::setw(15) << "Avg Time (ms)" << std::setw(15) << "Total Points" << std::setw(15) << "Adaptive Points" << std::setw(15) << "Points/ms" << std::endl;
+    std::cout << std::left << std::setw(15) << "Method" << std::setw(15) << "Avg Time (ms)" << std::setw(15) << "Total Points" << std::setw(15) << "Adaptive Pts" << std::setw(15) << "Points/ms" << std::endl;
     std::cout << std::left << std::setw(15) << "Fixed Grid" << std::setw(15) << std::fixed << std::setprecision(3) << avgTime_FixedGrid << std::setw(15) << fixedGridPoints.size() << std::setw(15) << "N/A" << std::setw(15) << std::fixed << std::setprecision(2) << fixedGridEfficiency << std::endl;
     std::cout << std::left << std::setw(15) << "HAG" << std::setw(15) << std::fixed << std::setprecision(3) << avgTime_HAG << std::setw(15) << HAG_Points.size() << std::setw(15) << adaptivePointsHAG << std::setw(15) << std::fixed << std::setprecision(2) << HAGEfficiency << std::endl;
     std::cout << std::left << std::setw(15) << "HAG_v1" << std::setw(15) << std::fixed << std::setprecision(3) << avgTime_HAG_v1 << std::setw(15) << HAG_v1_Points.size() << std::setw(15) << adaptivePointsHAG_v1 << std::setw(15) << std::fixed << std::setprecision(2) << HAG_v1Efficiency << std::endl;

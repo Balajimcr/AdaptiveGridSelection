@@ -6,7 +6,16 @@
 #include "GenerateGrid.h"
 
 namespace HAG {
-
+    /**
+    * Applies gradient-enhanced Lloyd's relaxation to a set of points based on a distortion map.
+    *
+    * @param distortionMap The map containing distortion magnitude values.
+    * @param points The vector of points to be relaxed.
+    * @param relaxationIterations Number of Lloyd's relaxation iterations to perform (default: 3).
+    * @param relaxationWeight Weight factor for centroid movement (default: 5.5).
+    * @param gradientWeight Weight factor for gradient influence (default: 0.3).
+    * @param distortionThreshold Threshold value for adaptive point generation (default: 1.0).
+    */
     void ApplyGradientEnhancedRelaxation(
         const cv::Mat& distortionMap,
         std::vector<cv::Point>& points,
@@ -183,15 +192,6 @@ namespace HAG {
 
                 // Store new position
                 newPositions[i] = newPosition;
-
-                // DEBUG: Sample output for first 3 points
-                if (i < 3) {
-                    /* std::cout << "Point " << i << " at (" << currentPoint.x << "," << currentPoint.y << ")\n"
-                        << "  Centroid movement: (" << centroidMovement.x << "," << centroidMovement.y << ")\n"
-                        << "  Gradient vector: (" << gradientVector.x << "," << gradientVector.y << ")\n"
-                        << "  Distortion factor: " << distortionFactor << "\n"
-                        << "  New position: (" << newPosition.x << "," << newPosition.y << ")\n";*/
-                }
             }
 
             // DEBUG: Movement statistics
@@ -242,7 +242,7 @@ namespace HAG {
         const int horizontalGridSize = 30,
         const int verticalGridSize = 30,
         const float distortionThreshold = 0.85f,
-        const int relaxationIterations = 3,
+        const int relaxationIterations = 6,
         const float relaxationWeight = 2.0) {
 
         // Get image dimensions
