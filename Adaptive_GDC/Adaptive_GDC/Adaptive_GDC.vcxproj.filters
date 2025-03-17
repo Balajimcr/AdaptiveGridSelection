@@ -20,16 +20,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FishEyeEffect.h">
+    <ClInclude Include="FishEyeEffect.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GenerateGrid.h">
+    <ClInclude Include="GenerateGrid.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="utils.h">
+    <ClInclude Include="utils.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ReconstructMap.h">
+    <ClInclude Include="ReconstructMap.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ThinPlateSplineInterpolator.hpp">
@@ -38,7 +38,7 @@
     <ClInclude Include="TestImageReconstruct.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GenerateGridv2.h">
+    <ClInclude Include="GenerateGridv2.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

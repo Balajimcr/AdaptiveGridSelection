@@ -3,7 +3,7 @@
 #include <vector>
 #include <unordered_set>
 #include <opencv2/opencv.hpp>
-#include "GenerateGrid.h"
+#include "GenerateGrid.hpp"
 
 namespace HAG {
     /**

@@ -4,11 +4,11 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
-#include "FishEyeEffect.h"
-#include "GenerateGrid.h"
-#include "GenerateGridv2.h"
-#include "utils.h"
-#include "ReconstructMap.h"
+#include "FishEyeEffect.hpp"
+#include "GenerateGrid.hpp"
+#include "GenerateGridv2.hpp"
+#include "utils.hpp"
+#include "ReconstructMap.hpp"
 #include "TestImageReconstruct.hpp"
 
 void TestFishEyeEffect() {

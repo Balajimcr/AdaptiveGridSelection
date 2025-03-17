@@ -136,13 +136,13 @@
     <ClCompile Include="Adaptive_GDC.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FishEyeEffect.h" />
-    <ClInclude Include="GenerateGrid.h" />
-    <ClInclude Include="GenerateGridv2.h" />
-    <ClInclude Include="ReconstructMap.h" />
+    <ClInclude Include="FishEyeEffect.hpp" />
+    <ClInclude Include="GenerateGrid.hpp" />
+    <ClInclude Include="GenerateGridv2.hpp" />
+    <ClInclude Include="ReconstructMap.hpp" />
     <ClInclude Include="TestImageReconstruct.hpp" />
     <ClInclude Include="ThinPlateSplineInterpolator.hpp" />
-    <ClInclude Include="utils.h" />
+    <ClInclude Include="utils.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

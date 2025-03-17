@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <vector>
 #include <map>
@@ -8,10 +9,10 @@
 #include <functional>
 #include <filesystem>
 
-#include "FishEyeEffect.h"
-#include "GenerateGrid.h"
-#include "utils.h"
-#include "ReconstructMap.h"
+#include "FishEyeEffect.hpp"
+#include "GenerateGrid.hpp"
+#include "utils.hpp"
+#include "ReconstructMap.hpp"
 
 // Structure to store grid generation results
 struct GridGenerationResult {
