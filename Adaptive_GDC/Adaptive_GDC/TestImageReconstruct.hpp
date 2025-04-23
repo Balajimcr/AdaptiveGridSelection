@@ -11,6 +11,7 @@
 
 #include "FishEyeEffect.hpp"
 #include "GenerateGrid.hpp"
+#include "GenerateGridv2.hpp"
 #include "utils.hpp"
 #include "ReconstructMap.hpp"
 

@@ -186,13 +186,13 @@ void TestAdaptiveGridRemapping() {
         GradientLowThreshold
     );
 
-    //// V2 Grid (takes Mat, vector<Point>, int, int, float)
-    //evaluator.registerGridAlgorithm(
-    //    "RD(V2) Grid",
-    //    &HAG::GenerateAdaptiveGrid_HAG_v2,
-    //    gridX, gridY,
-    //    GradientLowThreshold
-    //);
+    // V2 Grid (takes Mat, vector<Point>, int, int, float)
+    evaluator.registerGridAlgorithm(
+        "RD(V2) Grid",
+        reinterpret_cast<void (*)(const cv::Mat&, std::vector<cv::Point>&, int, int, float)>(&HAG::GenerateAdaptiveGrid_HAG_v2),
+        gridX, gridY,
+        GradientLowThreshold
+    );
 
     // Evaluate all registered algorithms
     evaluator.evaluateAllGrids();
@@ -204,7 +204,7 @@ void TestAdaptiveGridRemapping() {
 
 int main() {
     TestAdaptiveGridGeneration();
-	//TestAdaptiveGridRemapping();
+	TestAdaptiveGridRemapping();
     //TestFishEyeEffect();
 
     // Wait for user input
